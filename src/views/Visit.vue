@@ -10,7 +10,7 @@
       <b-form-select v-model="selectedDoctor" :options="filterDoctors" class="col-3"></b-form-select>
       <b-form-input v-model="selectedDate" type="date" class="col-3"></b-form-input>
       <b-form-select v-model="selectedPantient" :options="filterPantients" class="col-3"></b-form-select>
-    </div> -->
+    </div>-->
     <b-table
       ref="table"
       selectable
@@ -23,11 +23,15 @@
       :items="items"
       :fields="fields"
     >
-      <template slot="date" slot-scope="data">
-        {{ new Date(data.item.date).toString() }}
-      </template>
-</b-table>
-    <b-pagination v-model="page" :total-rows="totalPage" per-page="1" class="my-0" @change="changePage"></b-pagination>
+      <template slot="date" slot-scope="data">{{ getDate(data.item.date) }}</template>
+    </b-table>
+    <b-pagination
+      v-model="page"
+      :total-rows="totalPage"
+      per-page="1"
+      class="my-0"
+      @change="changePage"
+    ></b-pagination>
     <b-modal
       ref="edit"
       :title="selected !== null ? 'Edycja wizyty':'Dodaj wizytę'"
@@ -35,19 +39,75 @@
       @ok="ok"
       @cancel="cancel"
     >
-      <b-form-select v-model="editDoctor" :options="optionsDoctors"/>
-      <b-form-select v-model="editPantient" :options="optionsPantients"/>
-      <b-form-select v-model="editDate" :options="optionsDate"/>
-      <b-form-select v-model="editTime" :options="optionsTime"/>
+      <b-form-input
+        list="doctors"
+        v-model="editDoctor"
+        placeholder="Wybierz lekarza"
+        @change="changeDoctor"
+      ></b-form-input>
+      <datalist id="doctors">
+        <option
+          v-for="doctor in doctors"
+          v-bind:key="doctor.id"
+        >{{ doctor.firstname + ' '+doctor.lastname}}</option>
+      </datalist>
+      <b-form-input list="pantients" v-model="editPantient" placeholder="Wybierz pacjenta"></b-form-input>
+      <datalist id="pantients">
+        <option
+          v-for="pantient in pantients"
+          v-bind:key="pantient.id"
+        >{{ pantient.firstname + ' '+pantient.lastname}}</option>
+      </datalist>
+      <b-form-input list="dates" v-model="editDate" placeholder="Wybierz datę" @change="changeDate"></b-form-input>
+      <datalist id="dates">
+        <option v-for="day in freeDay" v-bind:key="day">{{ day }}</option>
+      </datalist>
+      <b-form-input
+        list="hours"
+        v-model="editTime"
+        placeholder="Wybierz godzinę"
+        @change="changeHour"
+      ></b-form-input>
+      <datalist id="hours">
+        <option v-for="hour in freeHour" v-bind:key="hour">{{ hour }}</option>
+      </datalist>
       <b-form-input v-model="editDescription" placeholder="Podaj opis" type="text"></b-form-input>
     </b-modal>
   </div>
 </template>
 
+
 <script>
+import moment from "moment";
 export default {
   name: "visit",
   components: {},
+  computed: {
+    selectedDoctor() {
+      let item = null;
+      if (this.editDoctor) {
+        const split = this.editDoctor.split(" ");
+        const firstname = split[0];
+        const lastname = split[1];
+        item = this.doctors.find(
+          item => item.firstname === firstname && item.lastname === lastname
+        );
+      }
+      return item;
+    },
+    selectedPantient() {
+      let item = null;
+      if (this.editPantient) {
+        const split = this.editPantient.split(" ");
+        const firstname = split[0];
+        const lastname = split[1];
+        item = this.pantients.find(
+          item => item.firstname === firstname && item.lastname === lastname
+        );
+      }
+      return item;
+    }
+  },
   data: () => {
     return {
       fields: {
@@ -67,78 +127,36 @@ export default {
           label: "Opis"
         }
       },
-      items: [
-        {
-          doctor: "Kowalski Jan",
-          date: "12:00:00 22.06.2018",
-          pantient: "Nowak Janusz",
-          description: "-"
-        },
-        {
-          doctor: "Majewski Jan",
-          date: "13:00:00 23.06.2018",
-          pantient: "Kowalski Janusz",
-          description: "-"
-        }
-      ],
-      selectedDoctor: null,
-      filterDoctors: [
-        { value: null, text: "Filtruj wg lekarza" },
-        { value: "Kowalski Jan", text: "Kowalski Jan" },
-        { value: "Majewski Jan", text: "Majewski Jan" }
-      ],
-      selectedPantient: null,
-      filterPantients: [
-        { value: null, text: "Filtruj wg pacjenta" },
-        { value: "Nowak Janusz", text: "Nowak Janusz" },
-        { value: "Kowalski Janusz", text: "Kowalski Janusz" }
-      ],
-      optionsDoctors: [
-        { value: null, text: "Wybierz lekarza" },
-        { value: "Kowalski Jan", text: "Kowalski Jan" },
-        { value: "Majewski Jan", text: "Majewski Jan" }
-      ],
-      optionsPantients: [
-        { value: null, text: "Wybierz pacjenta" },
-        { value: "Nowak Janusz", text: "Nowak Janusz" },
-        { value: "Kowalski Janusz", text: "Kowalski Janusz" }
-      ],
-      optionsDate: [
-        { value: null, text: "Wolne terminy" },
-        { value: "22.06.2018", text: "22.06.2018" },
-        { value: "23.06.2018", text: "23.06.2018" },
-        { value: "24.06.2018", text: "24.06.2018" },
-        { value: "25.06.2018", text: "25.06.2018" }
-      ],
-      optionsTime: [
-        { value: null, text: "Wolne godziny" },
-        { value: "08:00", text: "08:00" },
-        { value: "09:00", text: "09:00" },
-        { value: "10:00", text: "10:00" },
-        { value: "11:00", text: "11:00" },
-        { value: "12:00", text: "12:00" },
-        { value: "13:00", text: "13:00" }
-      ],
-      selectedDate: null,
+      items: [],
       editDoctor: null,
       editPantient: null,
       editDescription: "",
       editDate: null,
       editTime: null,
       selected: null,
-      page:1,
-      totalPage:3
+      page: 1,
+      totalPage: 3,
+      pantients: [],
+      doctors: [],
+      freeDate: [],
+      freeDay: [],
+      freeHour: []
     };
   },
   methods: {
+    getDate(date) {
+      return moment(date).format("HH:mm DD-MM-YYYY");
+    },
     select(items) {
       this.selected = items[0];
     },
     remove() {
-      const { doctor, pantient, date } = this.selected;
+      const { doctor, pantient, date, id } = this.selected;
       this.$bvModal
         .msgBoxConfirm(
-          `Czy chcesz usunąć wizytę ${pantient} u ${doctor} ${date} ?`,
+          `Czy chcesz usunąć wizytę ${pantient} u ${doctor} ${moment(
+            date
+          ).format("HH:mm DD.MM.YYYY")} ?`,
           {
             title: "Usuwanie wizyty",
             size: "sm",
@@ -152,11 +170,34 @@ export default {
             centered: true
           }
         )
-        .then(value => {
-          if (value) {
-            const index = this.items.findIndex(item => item === this.selected);
-            if (index > -1) this.items.splice(index, 1);
+        .then(async () => {
+          const response = await this.$api.delete(`visit/remove/${id}`);
+          const data = response.data;
+          if (data.item) {
+            this.$bvToast.toast("Usunięto dane.", {
+              title: "Usuwanie wizyty.",
+              autoHideDelay: 5000
+            });
           }
+          if (data.error) {
+            const error = data.error;
+            if (error.original)
+              this.$bvToast.toast(error.original.detail, {
+                title: "Usuwanie wizyty.",
+                autoHideDelay: 5000,
+                appendToast: true
+              });
+            if (error.errors.length) {
+              let description = "";
+              description = error.errors.map(error => error.path).join(", ");
+              this.$bvToast.toast(`Niepoprawne dane w polach ${description}.`, {
+                title: "Usuwanie wizyty.",
+                autoHideDelay: 5000,
+                appendToast: true
+              });
+            }
+          }
+          this.loadVisit();
         })
         .catch(error => {
           console.log(error);
@@ -166,7 +207,9 @@ export default {
       const { doctor, pantient, date, description } = this.selected;
       this.editDoctor = doctor;
       this.editPantient = pantient;
-      this.editDate = new Date(date);
+      this.loadFreeDays(this.selectedDoctor.id);
+      this.editDate = moment(date).format("DD.MM.YYYY");
+      this.editTime = moment(date).format("HH:mm");
       this.editDescription = description;
       this.$refs["edit"].show();
     },
@@ -178,29 +221,106 @@ export default {
       this.editDoctor = null;
       this.editPantient = null;
       this.editDate = null;
+      this.editTime = null;
       this.editDescription = "";
+      this.$refs.table.clearSelected();
     },
-    ok() {
+    async ok() {
+      let change = false;
+       const date = moment.utc(this.editDate + " " + this.editTime, "DD-MM-YYYY HH:mm").toDate();
       if (this.selected) {
-        const index = this.items.findIndex(item => item === this.selected);
-        this.items[index].doctor = this.editDoctor;
-        this.items[index].pantient = this.editPantient;
-        this.items[index].date = this.editDate;
-        this.items[index].description = this.editDescription;
-      } else {
-        this.items.push({
-          doctor: this.editDoctor,
-          pantient: this.editPantient,
-          date: this.editDate,
+        const response = await this.$api.post(`visit/edit`, {
+          id: this.selected.id,
+          doctorId: this.selectedDoctor.id,
+          pantientId: this.selectedPantient.id,
+          date,
           description: this.editDescription
         });
+        const data = response.data;
+        if (data.item) {
+          this.$bvToast.toast("Zmieniono dane.", {
+            title: "Edycja wizyty.",
+            autoHideDelay: 5000
+          });
+          change = true;
+        }
+        if (data.error) {
+          const error = data.error;
+          if (error.original)
+            this.$bvToast.toast(error.original.detail, {
+              title: "Edycja wizyty.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          if (error.errors.length) {
+            let description = "";
+            description = error.errors.map(error => error.path).join(", ");
+            this.$bvToast.toast(`Niepoprawne dane w polach ${description}.`, {
+              title: "Edycja wizyty.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          }
+        }
+      } else {
+        const response = await this.$api.post(`visit/add`, {
+          doctorId: this.selectedDoctor.id,
+          pantientId: this.selectedPantient.id,
+          date,
+          description: this.editDescription
+        });
+        const data = response.data;
+        if (data.item) {
+          this.$bvToast.toast("Dodano wizytę.", {
+            title: "Dodawanie wizyty.",
+            autoHideDelay: 5000
+          });
+          change = true;
+        }
+        if (data.error) {
+          const error = data.error;
+          if (error.original)
+            this.$bvToast.toast(error.original.detail, {
+              title: "Dodawanie wizyty.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          if (error.errors.length) {
+            let description = "";
+            description = error.errors.map(error => error.path).join(", ");
+            this.$bvToast.toast(`Niepoprawne dane w polach ${description}.`, {
+              title: "Dodawanie wizyty.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          }
+        }
       }
-      this.$refs.table.clearSelected();
-      this.selected = null;
-      this.editDoctor = null;
-      this.editPantient = null;
-      this.editDate = null;
-      this.editDescription = "";
+      if (change) {
+        this.$refs.table.clearSelected();
+        this.editDoctor = null;
+        this.editPantient = null;
+        this.editDate = null;
+        this.editTime = null;
+        this.editDescription = "";
+      }
+      this.loadVisit();
+    },
+    changeHour() {
+      if (!this.editTime) {
+        this.editDate = null;
+      }
+    },
+    changeDoctor() {
+      if (this.selectedDoctor) {
+        this.loadFreeDays(this.selectedDoctor.id);
+      }
+    },
+    changeDate() {
+      if (this.editDate) {
+        this.loadFreeHour();
+      }
+      this.editTime = null;
     },
     changePage(id) {
       var router = "/visit";
@@ -209,7 +329,6 @@ export default {
       this.loadVisit();
     },
     async loadVisit() {
-      this.loading = true;
       this.page = this.$route.params.id;
       if (this.page === undefined) this.page = 1;
       this.$api
@@ -217,17 +336,62 @@ export default {
         .then(response => {
           const { count, rows } = response.data;
           this.items = rows;
-          this.totalPage = (count / 100).toFixed(0);
-          this.loading = false;
+          this.totalPage = Math.ceil(count / 100);
         })
         .catch(error => {
           console.log(error);
-          this.loading = false;
         });
+    },
+    async loadPantients() {
+      this.$api
+        .get(`allpantients`)
+        .then(response => {
+          this.pantients = response.data.items;
+        })
+        .catch(error => {
+          console.log(error);
+        });
+    },
+    loadDoctors() {
+      this.$api
+        .get(`alldoctors`)
+        .then(response => {
+          this.doctors = response.data.items;
+        })
+        .catch(error => {
+          console.log(error);
+        });
+    },
+    loadFreeDays(doctorId) {
+      this.$api
+        .get(`/visit/day/${doctorId}`)
+        .then(response => {
+          this.freeDate = response.data;
+          this.freeDay = this.freeDate.map(data =>
+            moment(data).format("DD.MM.YYYY")
+          );
+          this.freeDay = this.freeDay.filter(
+            (v, i) => this.freeDay.indexOf(v) === i
+          );
+        })
+        .catch(error => {
+          console.log(error);
+        });
+    },
+    loadFreeHour() {
+      if (this.freeDay.length > 0) {
+        this.freeHour = this.freeDate
+          .map(data => moment(data).format("DD.MM.YYYY HH:mm"))
+          .filter(date => date.includes(this.editDate))
+          .map(date => date.substring(date.length - 6, date.length));
+      }
     }
   },
+
   created() {
     this.loadVisit();
+    this.loadPantients();
+    this.loadDoctors();
   }
 };
 </script>

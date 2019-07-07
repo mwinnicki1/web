@@ -22,37 +22,63 @@
         class="col-3"
       ></b-form-input>
     </div>-->
-      <b-table
-        ref="table"
-        selectable
-        select-mode="single"
-        @row-selected="select"
-        striped
-        hover
-        small
-        fixed
-        :items="items"
-        :fields="fields"
-        show-empty
-      ></b-table>
-      <b-pagination
-        v-model="page"
-        :total-rows="totalPage"
-        per-page="1"
-        class="my-0"
-        @change="changePage"
-      ></b-pagination>
+    <b-table
+      ref="table"
+      selectable
+      select-mode="single"
+      @row-selected="select"
+      striped
+      hover
+      small
+      fixed
+      :items="items"
+      :fields="fields"
+      show-empty
+    ></b-table>
+    <b-pagination
+      v-model="page"
+      :total-rows="totalPage"
+      per-page="1"
+      class="my-0"
+      @change="changePage"
+    ></b-pagination>
     <b-modal
-      ref="edit"
       :title="selected !== null ? 'Edycja doktora':'Dodaj doktora'"
       centered
       @ok="ok"
       @cancel="cancel"
+      no-close-on-backdrop
+      no-close-on-esc
+      v-model="visible"
     >
-      <b-form-input v-model="editNumber" placeholder="Podaj numer" type="number"></b-form-input>
-      <b-form-input v-model="editFirstname" placeholder="Podaj imię" type="text"></b-form-input>
-      <b-form-input v-model="editLastname" placeholder="Podaj nazwisko" type="text"></b-form-input>
-      <b-form-input v-model="editSpecialization" placeholder="Podaj specjalizację" type="text"></b-form-input>
+      <b-form-input
+        v-model="editNumber"
+        placeholder="Podaj numer"
+        type="number"
+        :state="validationNumber"
+        required
+      ></b-form-input>
+      <b-form-input
+        v-model="editFirstname"
+        placeholder="Podaj imię"
+        type="text"
+        :state="validationFirstname"
+        required
+      ></b-form-input>
+      <b-form-input
+        v-model="editLastname"
+        placeholder="Podaj nazwisko"
+        type="text"
+        :state="validationLastname"
+        required
+      ></b-form-input>
+      <b-form-input
+        v-model="editSpecialization"
+        placeholder="Podaj specjalizację"
+        type="text"
+        :state="validationSpecialization"
+        required
+      ></b-form-input>
     </b-modal>
   </div>
 </template>
@@ -61,6 +87,20 @@
 export default {
   name: "doctor",
   components: {},
+  computed: {
+    validationNumber() {
+      return this.editNumber.length === 7 ? true : false;
+    },
+    validationFirstname() {
+      return this.editFirstname.length > 0 ? true : false;
+    },
+    validationLastname() {
+      return this.editLastname.length > 0 ? true : false;
+    },
+    validationSpecialization() {
+      return this.editSpecialization.length > 0 ? true : false;
+    }
+  },
   data: () => {
     return {
       fields: {
@@ -103,13 +143,14 @@ export default {
       selectedFirstname: "",
       selectedLastname: "",
       selectedSpecialization: "",
-      editNumber: 0,
+      editNumber: "",
       editFirstname: "",
       editLastname: "",
       editSpecialization: "",
       selected: null,
       page: 1,
-      totalPage: 10
+      totalPage: 10,
+      visible: false
     };
   },
   methods: {
@@ -117,7 +158,7 @@ export default {
       this.selected = items[0];
     },
     remove() {
-      const { firstname, lastname, numberPwz } = this.selected;
+      const { firstname, lastname, numberPwz, id } = this.selected;
       this.$bvModal
         .msgBoxConfirm(
           `Czy chcesz usunąć pana doktora ${firstname} ${lastname} o numerze PWZ ${numberPwz} ?`,
@@ -134,11 +175,34 @@ export default {
             centered: true
           }
         )
-        .then(value => {
-          if (value) {
-            const index = this.items.findIndex(item => item === this.selected);
-            if (index > -1) this.items.splice(index, 1);
+        .then(async () => {
+          const response = await this.$api.delete(`doctor/remove/${id}`);
+          const data = response.data;
+          if (data.item) {
+            this.$bvToast.toast("Usunięto dane.", {
+              title: "Usuwanie lekarza.",
+              autoHideDelay: 5000
+            });
           }
+          if (data.error) {
+            const error = data.error;
+            if (error.original)
+              this.$bvToast.toast(error.original.detail, {
+                title: "Usuwanie lekarza.",
+                autoHideDelay: 5000,
+                appendToast: true
+              });
+            if (error.errors.length) {
+              let description = "";
+              description = error.errors.map(error => error.path).join(", ");
+              this.$bvToast.toast(`Niepoprawne dane w polach ${description}.`, {
+                title: "Usuwanie lekarza.",
+                autoHideDelay: 5000,
+                appendToast: true
+              });
+            }
+          }
+          this.loadDoctors();
         })
         .catch(error => {
           console.log(error);
@@ -150,39 +214,102 @@ export default {
       this.editFirstname = firstname;
       this.editLastname = lastname;
       this.editSpecialization = specialization;
-      this.$refs["edit"].show();
+      this.visible = true;
     },
     add() {
-      this.$refs["edit"].show();
+      this.visible = true;
     },
     cancel() {
       this.selected = null;
-      this.editNumber = null;
+      this.editNumber = "";
       this.editFirstname = "";
       this.editLastname = "";
       this.editSpecialization = "";
     },
-    ok() {
+    async ok() {
+      if (
+        !this.validationNumber ||
+        !this.validationFirstname ||
+        !this.validationLastname ||
+        !this.validationSpecialization
+      )
+        return;
+
       if (this.selected) {
         const index = this.items.findIndex(item => item === this.selected);
-        this.items[index].numberPwz = this.editNumber;
-        this.items[index].firstname = this.editFirstname;
-        this.items[index].lastname = this.editLastname;
-        this.items[index].specialization = this.editSpecialization;
-      } else {
-        this.items.push({
+        const response = await this.$api.post(`doctor/edit`, {
+          id: this.items[index].id,
           numberPwz: this.editNumber,
           firstname: this.editFirstname,
           lastname: this.editLastname,
           specialization: this.editSpecialization
         });
+        const data = response.data;
+        if (data.item) {
+          this.$bvToast.toast("Dane zmienione.", {
+            title: "Edytowanie lekarza.",
+            autoHideDelay: 5000
+          });
+        }
+        if (data.error) {
+          const error = data.error;
+          if (error.original)
+            this.$bvToast.toast(error.original.detail, {
+              title: "Edytowanie lekarza.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          if (error.errors.length) {
+            let description = "";
+            description = error.errors.map(error => error.path).join(", ");
+            this.$bvToast.toast(`Niepoprawne dane w polach ${description}.`, {
+              title: "Edytowanie lekarza.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          }
+        }
+      } else {
+        const response = await this.$api.post(`doctor/add`, {
+          numberPwz: this.editNumber,
+          firstname: this.editFirstname,
+          lastname: this.editLastname,
+          specialization: this.editSpecialization
+        });
+        const data = response.data;
+        if (data.item) {
+          this.$bvToast.toast("Lekarz został dodany.", {
+            title: "Dodawanie lekarza.",
+            autoHideDelay: 5000
+          });
+        }
+        if (data.error) {
+          const error = data.error;
+          if (error.original)
+            this.$bvToast.toast(error.original.detail, {
+              title: "Dodawanie lekarza.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          if (error.errors.length) {
+            let description = "";
+            description = error.errors.map(error => error.path).join(", ");
+            this.$bvToast.toast(`Niepoprawne dane w polach ${description}.`, {
+              title: "Dodawanie lekarza.",
+              autoHideDelay: 5000,
+              appendToast: true
+            });
+          }
+        }
       }
+
       this.$refs.table.clearSelected();
       this.selected = null;
-      this.editNumber = null;
+      this.editNumber = "";
       this.editFirstname = "";
       this.editLastname = "";
       this.editSpecialization = "";
+      this.loadDoctors();
     },
     changePage(id) {
       var router = "/doctor";
@@ -191,20 +318,17 @@ export default {
       this.loadDoctors();
     },
     async loadDoctors() {
-      this.loading = true;
       this.page = this.$route.params.id;
       if (this.page === undefined) this.page = 1;
       this.$api
         .get(`doctors/${this.page - 1}`)
         .then(response => {
-          const { count, rows } = response.data;
+          const { count, rows } = response.data.items;
           this.items = rows;
-          this.totalPage = (count / 100).toFixed(0);
-          this.loading = false;
+          this.totalPage = Math.ceil(count / 100);
         })
         .catch(error => {
           console.log(error);
-          this.loading = false;
         });
     }
   },

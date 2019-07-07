@@ -1,41 +1,54 @@
 <template>
   <div id="app">
-    <b-navbar type="dark" variant="info">
-      <b-navbar-brand href="/">MyDoctor</b-navbar-brand>
-      <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
-      <b-collapse id="nav-collapse" is-nav>
-        <b-navbar-nav class="ml-auto">
-          <b-nav-item-dropdown right>
-            <template slot="button-content">
-              <em>User</em>
-            </template>
-            <b-dropdown-item href="#">Profil</b-dropdown-item>
-            <b-dropdown-item href="#">Wyloguj</b-dropdown-item>
-          </b-nav-item-dropdown>
-        </b-navbar-nav>
-      </b-collapse>
+    <b-navbar type="dark">
+      <b-navbar-brand :href="isLogged?'/home':'/'">MyDoctor</b-navbar-brand>
+      <b-button @click="logout" v-if="isLogged">Wyloguj</b-button>
     </b-navbar>
-    <router-view/>
-    <div class="footer">
-      © 2018 Copyright: Szymon Zimny i Miłosz Winnicki
-      </div>
+    <router-view />
+    <div class="footer">© 2018 Copyright: Szymon Zimny i Miłosz Winnicki</div>
   </div>
 </template>
 <script>
-// @ is an alias to /src
+import { mapGetters } from "vuex";
 export default {
   name: "app",
-  components: {},
+  computed: mapGetters(["isLogged"]),
+  methods: {
+    logout() {
+      this.$store.dispatch("logout");
+      this.$router.push("/");
+    }
+  },
+  created() {
+    const name = this.$router.history.current.name;
+    if ((name === "start" || name === "login") && this.isLogged !== null) {
+      this.$router.push("/home");
+    }
+    if (name === "start" || name === "404" || name === "login") return;
+
+    if (!this.isLogged) {
+      this.$router.push("/404");
+    }
+  }
 };
 </script>
-<style scoped>
-#app{
+<style>
+#app {
 }
 .footer {
   padding: 20px;
   display: flex;
   justify-content: center;
-  color:white;
+  color: white;
   background-color: #18a2b8;
+}
+.navbar {
+  background: #18a2b8;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+button {
+  margin-right: 10px;
 }
 </style>

@@ -7,7 +7,7 @@
       Aplikacja służąca do obsługi przychodni.
     </template>
 
-    <b-button variant="primary" href="home">Zaloguj</b-button>
+    <b-button variant="primary" href="login">Zaloguj</b-button>
   </b-jumbotron>
   </div>
 </template>

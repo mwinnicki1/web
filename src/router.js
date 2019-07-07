@@ -7,6 +7,8 @@ import Visit from "./views/Visit.vue";
 import Doctor from "./views/Doctor.vue";
 import Pantient from "./views/Pantient.vue";
 import User from "./views/User.vue";
+import Schedule from "./views/Schedule.vue";
+import NotFound from "./views/NotFound.vue";
 
 Vue.use(Router);
 
@@ -67,6 +69,17 @@ export default new Router({
       path: "/register",
       name: "user",
       component: User
-    }
-  ]
+    },
+    {
+      path: "/schedule",
+      name: "schedule",
+      component: Schedule
+    },
+    {
+      path: "/404",
+      name: "404",
+      component: NotFound
+    },
+    { path: '*', redirect: '/404' },
+  ],
 });
